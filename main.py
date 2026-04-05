@@ -68,23 +68,25 @@ class MyPlugin(Star):
             self.hardwork_list = default_list
         return
 
-    def check_time_format(self, times: str) -> MessageChain | None:
+    def check_time_format(
+        self, times: str
+    ) -> tuple[MessageChain | None, pendulum.Duration | None]:
         try:
             work_time = pendulum.parse(times)
             if not isinstance(work_time, pendulum.Duration):
                 chain = MessageChain().message(
                     "这不是一个符合ISO8601规范的持续时间，请核实后再试。"
                 )
-                return chain
+                return chain, None
             if work_time.in_seconds() <= 0:
                 chain = MessageChain().message("设置时间不能为负数。")
-                return chain
+                return chain, None
         except pendulum.parsing.exceptions.ParserError:
             chain = MessageChain().message(
                 "这不是一个符合ISO8601规范的持续时间，请核实后再试。"
             )
-            return chain
-        return None
+            return chain, None
+        return None, work_time
 
     def write_list(self, work_list):
         data_dir = StarTools.get_data_dir()
@@ -118,7 +120,7 @@ class MyPlugin(Star):
     def create_work(
         self, times: pendulum.Duration, plat_name: str, user_id: str, forced: bool
     ) -> tuple[str, str]:
-        if self.hardwork_list["hardwork_user"].get(plat_name, None) is None:
+        if self.hardwork_list["hardwork_user"].get(plat_name) is None:
             self.hardwork_list["hardwork_user"][plat_name] = {}
 
         self.clear_task()
@@ -150,12 +152,12 @@ class MyPlugin(Star):
     async def hd_set(self, event: AstrMessageEvent, times: str):
         """设置可以解除的专注时间"""
         async with self._hd_lock:
-            chain = self.check_time_format(times)
+            chain, result = self.check_time_format(times)
             if chain is None:
                 event.stop_event()
-                times = pendulum.parse(times)
+                prased_time = result
                 status, detail = self.create_work(
-                    times, event.platform_meta.name, event.get_sender_id(), False
+                    prased_time, event.platform_meta.name, event.get_sender_id(), False
                 )
                 if status == "Fail":
                     chain = MessageChain().message(detail)
@@ -170,12 +172,12 @@ class MyPlugin(Star):
     async def hd_fset(self, event: AstrMessageEvent, times: str):
         """设置不可解除的专注时间"""
         async with self._hd_lock:
-            chain = self.check_time_format(times)
+            chain, result = self.check_time_format(times)
             if chain is None:
                 event.stop_event()
-                times = pendulum.parse(times)
+                prased_time = result
                 status, detail = self.create_work(
-                    times, event.platform_meta.name, event.get_sender_id(), True
+                    prased_time, event.platform_meta.name, event.get_sender_id(), True
                 )
                 if status == "Fail":
                     chain = MessageChain().message(detail)

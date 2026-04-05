@@ -1,0 +1,44 @@
+{
+    "hardwork_decorate" : {
+        "description" : "非强制专注模式时提示消息的相关提示",
+        "hint" : "前后缀相对于结束时间提示",
+        "type" : "object",
+        "items" : {
+            "hardwork_prefix" : {
+                "description" : "消息前缀",
+                "type" : "text",
+                "default" : "你已经设置了专注时间，在"
+            },
+            "hardwork_suffix" : {
+                "description" : "消息后缀",
+                "type" : "text",
+                "default" : "结束喵，怎么跑这里来了？"
+            }
+        }
+
+    },
+    "force_hardwork_decorate" : {
+        "description" : "强制专注模式时提示消息的相关提示",
+        "hint" : "前后缀相对于结束时间提示",
+        "type" : "object",
+        "items" : {
+            "force_hardwork_prefix" : {
+                "description" : "消息前缀",
+                "type" : "text",
+                "default" : "你已经设置了强制的专注时间，在"
+            },
+            "force_hardwork_suffix" : {
+                "description" : "消息后缀",
+                "type" : "text",
+                "default" : "结束喵，怎么跑这里来了？"
+            },
+            "force_notify" : {
+                "description" : "尝试解除强制专注提示",
+                "hint" : "当用户发送/hd clear且设置了强制专注时的提示消息",
+                "type" : "text",
+                "default" : "你设置的专注时间是强制的，无法解除喵！"
+            }
+        }
+
+    }
+}

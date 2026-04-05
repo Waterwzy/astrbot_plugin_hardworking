@@ -84,6 +84,7 @@ class MyPlugin(Star):
         return
 
     def clear_task(self):
+        flag = False
         for plat in self.hardwork_list["hardwork_user"].keys():
             for user_item in list(self.hardwork_list["hardwork_user"][plat].keys()):
                 if (
@@ -91,10 +92,12 @@ class MyPlugin(Star):
                     <= pendulum.now().timestamp()
                 ):
                     self.hardwork_list["hardwork_user"][plat].pop(user_item)
-        self.write_list(self.hardwork_list)
+                    flag = True
+        if flag:
+            self.write_list(self.hardwork_list)
         return
 
-    def creat_work(
+    def create_work(
         self, times: pendulum.Duration, plat_name: str, user_id: str, forced: bool
     ) -> tuple[str, str]:
         if self.hardwork_list["hardwork_user"].get(plat_name, None) is None:
@@ -118,7 +121,7 @@ class MyPlugin(Star):
 
         self.hardwork_list["hardwork_user"][plat_name][user_id] = hardwork_item
         self.write_list(self.hardwork_list)
-        return "Suceess", future.strftime("%Y年%m月%d日 %H:%M:%S")
+        return "Success", future.strftime("%Y年%m月%d日 %H:%M:%S")
 
     @filter.command_group("hd")
     def hd(self):
@@ -133,10 +136,10 @@ class MyPlugin(Star):
             if chain is None:
                 event.stop_event()
                 times = pendulum.parse(times)
-                statue, detail = self.creat_work(
+                status, detail = self.create_work(
                     times, event.platform_meta.name, event.get_sender_id(), False
                 )
-                if statue == "Fail":
+                if status == "Fail":
                     chain = MessageChain().message(detail)
                 else:
                     chain = MessageChain().message(
@@ -153,10 +156,10 @@ class MyPlugin(Star):
             if chain is None:
                 event.stop_event()
                 times = pendulum.parse(times)
-                statue, detail = self.creat_work(
+                status, detail = self.create_work(
                     times, event.platform_meta.name, event.get_sender_id(), True
                 )
-                if statue == "Fail":
+                if status == "Fail":
                     chain = MessageChain().message(detail)
                 else:
                     chain = MessageChain().message(
@@ -179,6 +182,7 @@ class MyPlugin(Star):
             ):
                 if not self.hardwork_list["hardwork_user"][plat_name][sender]["forced"]:
                     self.hardwork_list["hardwork_user"][plat_name].pop(sender)
+                    self.write_list(self.hardwork_list)
                     chain = MessageChain().message("解除专注时间成功！")
                 else:
                     chain = MessageChain().message(
@@ -194,28 +198,33 @@ class MyPlugin(Star):
         """检查用户是否处于专注时间"""
         plat_name = event.platform_meta.name
         sender_id = event.get_sender_id()
-        self.clear_task()
-        if (
-            self.hardwork_list["hardwork_user"].get(plat_name) is not None
-            and sender_id in self.hardwork_list["hardwork_user"][plat_name]
-        ):
-            times_str = pendulum.from_timestamp(
-                self.hardwork_list["hardwork_user"][plat_name][sender_id]["end_time"]
-            ).strftime("%Y年%m月%d日 %H:%M:%S")
-            if self.hardwork_list["hardwork_user"][plat_name][sender_id]["forced"]:
-                fin_str = (
-                    self.config["force_hardwork_decorate"]["force_hardwork_prefix"]
-                    + times_str
-                    + self.config["force_hardwork_decorate"]["force_hardwork_suffix"]
-                )
-            else:
-                fin_str = (
-                    self.config["hardwork_decorate"]["hardwork_prefix"]
-                    + times_str
-                    + self.config["hardwork_decorate"]["hardwork_suffix"]
-                )
-            yield event.plain_result(fin_str)
-            event.stop_event()
+        async with self._hd_lock:
+            self.clear_task()
+            if (
+                self.hardwork_list["hardwork_user"].get(plat_name) is not None
+                and sender_id in self.hardwork_list["hardwork_user"][plat_name]
+            ):
+                times_str = pendulum.from_timestamp(
+                    self.hardwork_list["hardwork_user"][plat_name][sender_id][
+                        "end_time"
+                    ]
+                ).strftime("%Y年%m月%d日 %H:%M:%S")
+                if self.hardwork_list["hardwork_user"][plat_name][sender_id]["forced"]:
+                    fin_str = (
+                        self.config["force_hardwork_decorate"]["force_hardwork_prefix"]
+                        + times_str
+                        + self.config["force_hardwork_decorate"][
+                            "force_hardwork_suffix"
+                        ]
+                    )
+                else:
+                    fin_str = (
+                        self.config["hardwork_decorate"]["hardwork_prefix"]
+                        + times_str
+                        + self.config["hardwork_decorate"]["hardwork_suffix"]
+                    )
+                yield event.plain_result(fin_str)
+                event.stop_event()
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""

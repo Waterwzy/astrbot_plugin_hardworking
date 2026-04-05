@@ -10,6 +10,10 @@ from astrbot.api.event import AstrMessageEvent, MessageChain, filter
 from astrbot.api.star import Context, Star, StarTools
 
 
+class FileFormatError(Exception):
+    pass
+
+
 class MyPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
@@ -36,9 +40,17 @@ class MyPlugin(Star):
         try:
             with open(file_path, encoding="utf-8") as f:
                 self.hardwork_list = json.load(f)
-        except json.JSONDecodeError:
+                if (
+                    not isinstance(self.hardwork_list, dict)
+                    or "hardwork_user" not in self.hardwork_list
+                    or not isinstance(self.hardwork_list["hardwork_user"], dict)
+                ):
+                    raise FileFormatError
+        except (json.JSONDecodeError, FileFormatError):
             logger.error("文件数据损坏，正在备份并创建新文件...")
-            backup_path = file_path / f"list_backup{int(pendulum.now().timestamp())}"
+            backup_path = (
+                file_root_path / f"list_backup{int(pendulum.now().timestamp())}"
+            )
             try:
                 shutil.copy(file_path, backup_path)
                 logger.info(f"损坏文件已备份至{backup_path}")
@@ -80,7 +92,7 @@ class MyPlugin(Star):
                 json.dump(work_list, f, ensure_ascii=False, indent=4)
         except Exception:
             trace_err = traceback.format_exc()
-            logger.error(f"读取文件失败{trace_err}")
+            logger.error(f"写入文件失败{trace_err}")
         return
 
     def clear_task(self):
@@ -175,6 +187,7 @@ class MyPlugin(Star):
         sender = event.get_sender_id()
         async with self._hd_lock:
             event.stop_event()
+            self.clear_task()
             if (
                 self.hardwork_list["hardwork_user"].get(plat_name) is not None
                 and self.hardwork_list["hardwork_user"][plat_name].get(sender)

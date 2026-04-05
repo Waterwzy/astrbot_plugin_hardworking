@@ -65,6 +65,7 @@ class MyPlugin(Star):
         except Exception:
             trace_err = traceback.format_exc()
             logger.error(f"读取文件出现未知异常{trace_err}")
+            self.hardwork_list = default_list
         return
 
     def check_time_format(self, times: str) -> MessageChain | None:
@@ -74,6 +75,9 @@ class MyPlugin(Star):
                 chain = MessageChain().message(
                     "这不是一个符合ISO8601规范的持续时间，请核实后再试。"
                 )
+                return chain
+            if work_time.in_seconds() <= 0:
+                chain = MessageChain().message("设置时间不能为负数。")
                 return chain
         except pendulum.parsing.exceptions.ParserError:
             chain = MessageChain().message(
@@ -100,7 +104,9 @@ class MyPlugin(Star):
         for plat in self.hardwork_list["hardwork_user"].keys():
             for user_item in list(self.hardwork_list["hardwork_user"][plat].keys()):
                 if (
-                    self.hardwork_list["hardwork_user"][plat][user_item]["end_time"]
+                    self.hardwork_list["hardwork_user"][plat][user_item].get(
+                        "end_time", 0
+                    )
                     <= pendulum.now().timestamp()
                 ):
                     self.hardwork_list["hardwork_user"][plat].pop(user_item)
@@ -117,16 +123,16 @@ class MyPlugin(Star):
 
         self.clear_task()
 
-        if (
-            self.hardwork_list["hardwork_user"][plat_name].get(user_id) is not None
-            and self.hardwork_list["hardwork_user"][plat_name][user_id]["forced"]
+        if self.hardwork_list["hardwork_user"][plat_name].get(
+            user_id
+        ) is not None and self.hardwork_list["hardwork_user"][plat_name][user_id].get(
+            "forced", False
         ):
             return "Fail", "你已经设置了强制专注时间；结束之前无法取消或重新设置"
 
         future = pendulum.now() + times
 
         hardwork_item = {
-            "user_id": user_id,
             "end_time": future.timestamp(),
             "forced": forced,
         }
@@ -213,6 +219,7 @@ class MyPlugin(Star):
         sender_id = event.get_sender_id()
         async with self._hd_lock:
             self.clear_task()
+            chain = None
             if (
                 self.hardwork_list["hardwork_user"].get(plat_name) is not None
                 and sender_id in self.hardwork_list["hardwork_user"][plat_name]
@@ -236,8 +243,10 @@ class MyPlugin(Star):
                         + times_str
                         + self.config["hardwork_decorate"]["hardwork_suffix"]
                     )
-                yield event.plain_result(fin_str)
+                chain = MessageChain().message(fin_str)
                 event.stop_event()
+        if chain:
+            await event.send(chain)
 
     async def terminate(self):
         """可选择实现异步的插件销毁方法，当插件被卸载/停用时会调用。"""

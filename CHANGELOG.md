@@ -2,4 +2,5 @@
 
 这是插件的更新日志
 
-### pre-released
+### Unreleased
+- 修改指令组为`hw`（之前原来写错了）

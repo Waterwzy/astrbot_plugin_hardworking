@@ -143,12 +143,12 @@ class MyPlugin(Star):
         self.write_list(self.hardwork_list)
         return "Success", future.strftime("%Y年%m月%d日 %H:%M:%S")
 
-    @filter.command_group("hd")
-    def hd(self):
+    @filter.command_group("hw")
+    def hw(self):
         """hardworking插件指令组注册"""
         pass
 
-    @hd.command("set")
+    @hw.command("set")
     async def hd_set(self, event: AstrMessageEvent, times: str):
         """设置可以解除的专注时间"""
         async with self._hd_lock:
@@ -168,7 +168,7 @@ class MyPlugin(Star):
 
         await event.send(chain)
 
-    @hd.command("fset")
+    @hw.command("fset")
     async def hd_fset(self, event: AstrMessageEvent, times: str):
         """设置不可解除的专注时间"""
         async with self._hd_lock:
@@ -188,7 +188,7 @@ class MyPlugin(Star):
 
         await event.send(chain)
 
-    @hd.command("clear")
+    @hw.command("clear")
     async def clear(self, event: AstrMessageEvent):
         """解除可以取消的专注时间"""
         plat_name = event.platform_meta.name
